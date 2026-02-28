@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="de">
 <head>
 <meta charset="utf-8">
@@ -18,13 +19,15 @@ const genNames = ["OBERARM", "UNTERARM", "BEIN OBEN", "BEIN UNTEN", "SCHULTER", 
 let displayGenes = [], targetGenes = [], generation = 1;
 let initialGenes = [2, 1.5, 2.5, 2, 0.4, 0.4, 0.6, 0.3, 0.8];
 let lastMutation = "START";
-function setup() {
+  function setup() {
 createCanvas(windowWidth, windowHeight);
 displayGenes = [...initialGenes];
 targetGenes = [...initialGenes];
 generateMutants(new DNA(initialGenes));
 }
+
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+
 function draw() {
 background(10, 15, 25);
 for (let i = 0; i < displayGenes.length; i++) {
@@ -56,6 +59,10 @@ textAlign(CENTER); textSize(10); fill(255, 200, 0, 180);
 text(genNames[creatures[i].mutatedGene], x, gridY + row * childH + 18);
 }
 }
+Läuft, Ove! Jetzt kommt der letzte Endspurt. Kopiere diesen Text und füge ihn ganz unten an das Ende der Datei an. Achte darauf, dass danach keine weiteren Zeichen mehr kommen.
+
+TEIL 3 (Das Ende):
+
 function touchStarted() {
 let headerH = height * 0.32; let dbH = height * 0.10;
 let gridY = headerH + dbH;
@@ -74,7 +81,9 @@ generateMutants(selected.dna);
 }
 return false;
 }
+
 function mousePressed() { if (mouseX > 0 && mouseY > 0) touchStarted(); }
+
 function generateMutants(parentDNA) {
 creatures = [];
 for (let i = 0; i < 8; i++) {
@@ -85,11 +94,13 @@ newDNA.genes[mutIdx] = constrain(newDNA.genes[mutIdx], 0.2, 5);
 creatures.push(new Strichmensch(newDNA, mutIdx));
 }
 }
+
 class DNA { constructor(genes) { this.genes = [...genes]; } }
 class Strichmensch {
 constructor(dna, mIdx) { this.dna = dna; this.mutatedGene = mIdx; }
 show(x, y, s) { drawStickman(x, y, this.dna.genes, s, color(200, 200, 220, 120), this.mutatedGene); }
 }
+
 function drawStickman(x, y, genes, s, baseCol, mIdx) {
 push(); translate(x, y); scale(s);
 strokeWeight(5); stroke(baseCol); line(0, 0, 0, 30);
@@ -102,6 +113,7 @@ drawLimb(0, 30, genes[2]*15, genes[3]*15, genes[5]*side, genes[7]*side, side, ba
 }
 pop();
 }
+
 function drawLimb(sx, sy, ul, ll, ua, la, side, c, mIdx, gIds) {
 let isMut = gIds.includes(mIdx); stroke(isMut ? color(255, 180, 0) : c);
 strokeWeight(isMut ? 8 : 5);
@@ -109,6 +121,6 @@ let ux = sx + sin(ua) * ul; let uy = sy + cos(ua) * ul;
 line(sx, sy, ux, uy); line(ux, uy, ux + sin(ua + la) * ll, uy + cos(ua + la) * ll);
 }
 </script>
+
 </body>
 </html>
-
