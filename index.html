@@ -1,142 +1,154 @@
 <!DOCTYPE html>
-
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Evo-Labor</title>
-<script src=""></script>
 <style>
-body { margin: 0; padding: 0; overflow: hidden; background: #0a0f19; touch-action: none; font-family: sans-serif; }
-canvas { display: block; }
+body { margin:0; overflow:hidden; background:#0a0f19; font-family:sans-serif; }
+canvas { display:block; }
 </style>
 </head>
 <body>
+<canvas id="canvas"></canvas>
+
 <script>
-let creatures = [];
-const genNames = ["OBERARM", "UNTERARM", "BEIN OBEN", "BEIN UNTEN", "SCHULTER", "HÜFTE", "ELLBOGEN", "KNIE", "KOPF"];
-let displayGenes = [], targetGenes = [], generation = 1;
-let initialGenes = [2, 1.5, 2.5, 2, 0.4, 0.4, 0.6, 0.3, 0.8];
-let lastMutation = "START";
-let selectionCount = new Array(9).fill(0);
+// ===============================
+// Utility
+// ===============================
+const Utils = {
+  lerp: (a,b,t)=>a+(b-a)*t,
+  clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),
+  rand:(min,max)=>Math.random()*(max-min)+min,
+  randInt:(max)=>Math.floor(Math.random()*max),
+  choice:(arr)=>arr[Math.floor(Math.random()*arr.length)]
+};
 
-function setup() {
-createCanvas(windowWidth, windowHeight);
-displayGenes = [...initialGenes];
-targetGenes = [...initialGenes];
-generateMutants(new DNA(initialGenes));
+// ===============================
+// Canvas Engine
+// ===============================
+class Engine {
+  constructor(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.resize();
+    window.addEventListener("resize", ()=>this.resize());
+  }
+  resize(){
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+  clear(){
+    this.ctx.fillStyle="#0a0f19";
+    this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+  }
 }
 
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
-
-function draw() {
-background(10, 15, 25);
-for (let i = 0; i < displayGenes.length; i++) {
-displayGenes[i] = lerp(displayGenes[i], targetGenes[i], 0.03);
-}
-let pHA = height * 0.35;
-noStroke(); fill(20, 25, 40);
-rect(10, 10, width - 20, pHA - 20, 20);
-drawStickman(width/2, pHA/2 + 15, displayGenes, 1.4, color(0, 255, 200), -1);
-
-let dbY = pHA;
-let dbH = height * 0.15;
-fill(15, 20, 30); rect(10, dbY, width - 20, dbH - 10, 15);
-fill(0, 255, 200); textAlign(LEFT); textSize(14);
-text("GEN: " + generation, 25, dbY + 25);
-
-let dist = 0;
-for(let i=0; i<9; i++) dist += abs(targetGenes[i] - initialGenes[i]);
-fill(255, 120); textSize(11);
-text("ABWEICHUNG: " + dist.toFixed(2), 25, dbY + 45);
-text("LETZTE WAHL: " + lastMutation, 25, dbY + 65);
-
-textAlign(RIGHT); fill(255, 60); text("FOKUS:", width - 25, dbY + 25);
-let maxVal = max(selectionCount);
-for(let i=0; i<9; i++) {
-let barW = map(selectionCount[i], 0, maxVal || 1, 0, 60);
-fill(255, 15); rect(width - 85, dbY + 35 + (i * 5), 60, 3);
-fill(255, 200, 0, 150); rect(width - 85, dbY + 35 + (i * 5), barW, 3);
+// ===============================
+// DNA
+// ===============================
+class DNA {
+  constructor(genes){
+    this.genes = [...genes];
+  }
+  mutate(){
+    const idx = Utils.randInt(this.genes.length);
+    this.genes[idx] += Utils.choice([-1,1]) * 0.55;
+    this.genes[idx] = Utils.clamp(this.genes[idx],0.2,5);
+    return idx;
+  }
+  clone(){
+    return new DNA(this.genes);
+  }
 }
 
-let gridY = dbY + dbH;
-let childW = (width - 30) / 2;
-let childH = (height - gridY - 20) / 4;
-for (let i = 0; i < 8; i++) {
-let col = i % 2; let row = floor(i / 2);
-let x = 15 + col * childW + childW/2;
-let y = gridY + row * childH + childH/2;
-let kX = 15 + col * childW + 4;
-let kY = gridY + row * childH + 4;
-fill(255, 4); noStroke();
-rect(kX, kY, childW - 8, childH - 8, 12);
-creatures[i].show(x, y, 0.5);
-textAlign(LEFT); textSize(9); fill(255, 200, 0, 180);
-text(genNames[creatures[i].mutatedGene], kX + 8, kY + 15);
-}
+// ===============================
+// Creature Renderer
+// ===============================
+class Creature {
+  constructor(dna){
+    this.dna = dna;
+  }
+
+  draw(ctx,x,y,scale=1,color="rgba(0,255,200,0.8)"){
+    const g = this.dna.genes;
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    ctx.strokeStyle=color;
+    ctx.lineWidth=4;
+
+    // torso
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(0,30);
+    ctx.stroke();
+
+    // head
+    let headSize = 10 + g[8]*10;
+    ctx.beginPath();
+    ctx.arc(0,-10-headSize/2,headSize/2,0,Math.PI*2);
+    ctx.stroke();
+
+    const limb = (sx,sy,ul,ll,ua,la)=>{
+      const ux = sx + Math.sin(ua)*ul;
+      const uy = sy + Math.cos(ua)*ul;
+      ctx.beginPath();
+      ctx.moveTo(sx,sy);
+      ctx.lineTo(ux,uy);
+      ctx.lineTo(
+        ux + Math.sin(ua+la)*ll,
+        uy + Math.cos(ua+la)*ll
+      );
+      ctx.stroke();
+    };
+
+    for(let side of [-1,1]){
+      limb(0,5,g[0]*12,g[1]*12,g[4]*side,g[6]*side);
+      limb(0,30,g[2]*12,g[3]*12,g[5]*side,g[7]*side);
+    }
+
+    ctx.restore();
+  }
 }
 
-function touchStarted() {
-let pHA = height * 0.35; let dbH = height * 0.15;
-let gridY = pHA + dbH;
-if (mouseY < gridY) return false;
-let childW = (width - 30) / 2;
-let childH = (height - gridY - 20) / 4;
-let col = floor((mouseX - 15) / childW);
-let row = floor((mouseY - gridY) / childH);
-let index = col + row * 2;
-if (index >= 0 && index < 8) {
-let selected = creatures[index];
-lastMutation = genNames[selected.mutatedGene];
-selectionCount[selected.mutatedGene]++;
-targetGenes = [...selected.dna.genes];
-generation++;
-generateMutants(selected.dna);
-}
-return false;
+// ===============================
+// Evolution System
+// ===============================
+class Evolution {
+  constructor(){
+    this.baseGenes=[2,1.5,2.5,2,0.4,0.4,0.6,0.3,0.8];
+    this.currentDNA=new DNA(this.baseGenes);
+    this.creature=new Creature(this.currentDNA);
+  }
+  next(){
+    const newDNA=this.currentDNA.clone();
+    newDNA.mutate();
+    this.currentDNA=newDNA;
+    this.creature=new Creature(newDNA);
+  }
 }
 
-function mousePressed() { if (mouseX > 0 && mouseY > 0) touchStarted(); }
+// ===============================
+// App
+// ===============================
+const engine=new Engine(document.getElementById("canvas"));
+const evo=new Evolution();
 
-function generateMutants(parentDNA) {
-creatures = [];
-for (let i = 0; i < 8; i++) {
-let newDNA = new DNA(parentDNA.genes);
-let mutIdx = floor(random(9));
-newDNA.genes[mutIdx] += random([-1, 1]) * 0.55;
-newDNA.genes[mutIdx] = constrain(newDNA.genes[mutIdx], 0.2, 5);
-creatures.push(new Strichmensch(newDNA, mutIdx));
-}
-}
+window.addEventListener("click",()=>evo.next());
 
-class DNA { constructor(genes) { this.genes = [...genes]; } }
-class Strichmensch {
-constructor(dna, mIdx) { this.dna = dna; this.mutatedGene = mIdx; }
-show(x, y, s) { drawStickman(x, y, this.dna.genes, s, color(200, 200, 220, 100), this.mutatedGene); }
-}
-
-function drawStickman(x, y, genes, s, baseCol, mIdx) {
-push(); translate(x, y); scale(s);
-let highCol = color(255, 180, 0);
-strokeWeight(4); stroke(baseCol); line(0, 0, 0, 30);
-let hSize = 10 + genes[8] * 10;
-stroke(mIdx === 8 ? highCol : baseCol);
-if(mIdx === 8) strokeWeight(8);
-noFill(); ellipse(0, -10 - hSize/2, hSize, hSize);
-for(let side of [-1, 1]) {
-drawLimb(0, 5, genes[0]*12, genes[1]*12, genes[4]*side, genes[6]*side, side, baseCol, highCol, mIdx, [0, 1, 4, 6]);
-drawLimb(0, 30, genes[2]*12, genes[3]*12, genes[5]*side, genes[7]*side, side, baseCol, highCol, mIdx, [2, 3, 5, 7]);
-}
-pop();
+function loop(){
+  engine.clear();
+  evo.creature.draw(
+    engine.ctx,
+    engine.canvas.width/2,
+    engine.canvas.height/2,
+    1.6
+  );
+  requestAnimationFrame(loop);
 }
 
-function drawLimb(sx, sy, ul, ll, ua, la, side, c, hc, mIdx, gIds) {
-let isMut = gIds.includes(mIdx); stroke(isMut ? hc : c);
-strokeWeight(isMut ? 8 : 4);
-let ux = sx + sin(ua) * ul; let uy = sy + cos(ua) * ul;
-line(sx, sy, ux, uy); line(ux, uy, ux + sin(ua + la) * ll, uy + cos(ua + la) * ll);
-}
+loop();
 </script>
-
 </body>
 </html>
