@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Evolutions-Labor</title><script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script><style>body {padding: 0; margin: 0; overflow: hidden; background: #0a0f19; touch-action: none;}</style></head><body><script>
+
+let creatures = [];
+const genNames = ["OBERARM", "UNTERARM", "BEIN OBEN", "BEIN UNTEN", "SCHULTER", "HÜFTE", "ELLBOGEN", "KNIE", "KOPF"];
+let displayGenes = [], targetGenes = [], generation = 1;
+let initialGenes = [2, 1.5, 2.5, 2, 0.4, 0.4, 0.6, 0.3, 0.8];
+let lastMutation = "START";
+
+function setup() {
+createCanvas(windowWidth, windowHeight);
+displayGenes = [...initialGenes];
+targetGenes = [...initialGenes];
+generateMutants(new DNA(initialGenes));
+}
+
+function windowResized() {
+resizeCanvas(windowWidth, windowHeight);
+}
+
+function draw() {
+background(10, 15, 25);
+for (let i = 0; i < displayGenes.length; i++) {
+displayGenes[i] = lerp(displayGenes[i], targetGenes[i], 0.05);
+}
+
+let headerH = height * 0.35;
+noStroke(); fill(20, 25, 40);
+rect(10, 10, width - 20, headerH - 20, 15);
+drawStickman(width/2, headerH/2 + 10, displayGenes, height/850, color(0, 255, 200), -1);
+
+let dbY = headerH;
+let dbH = height * 0.12;
+fill(15, 20, 30); rect(10, dbY, width - 20, dbH - 10, 10);
+fill(0, 255, 200); textAlign(LEFT, CENTER); textSize(14);
+text("GEN: " + generation, 25, dbY + dbH/2 - 12);
+fill(255, 150); textSize(11);
+text("LETZTE WAHL: " + lastMutation, 25, dbY + dbH/2 + 8);
+
+let gridY = dbY + dbH;
+let gridH = height - gridY - 10;
+let childW = (width - 30) / 2;
+let childH = gridH / 4;
+
+for (let i = 0; i < 8; i++) {
+let col = i % 2; let row = floor(i / 2);
+let x = 15 + col * childW + childW/2;
+let y = gridY + row * childH + childH/2;
+fill(255, 5); noStroke();
+rect(15 + col * childW + 2, gridY + row * childH + 2, childW - 4, childH - 4, 8);
+creatures[i].show(x, y, height/1800);
+textAlign(CENTER); textSize(9); fill(255, 200, 0, 150);
+text(genNames[creatures[i].mutatedGene], x, gridY + (row+1) * childH - 8);
+}
+}
+
+function touchStarted() {
+let headerH = height * 0.35; let dbH = height * 0.12;
+let gridY = headerH + dbH;
+if (mouseY < gridY) return false;
+let childW = (width - 30) / 2;
+let childH = (height - gridY - 10) / 4;
+let col = floor((mouseX - 15) / childW);
+let row = floor((mouseY - gridY) / childH);
+let index = col + row * 2;
+if (index >= 0 && index < 8) {
+let selected = creatures[index];
+lastMutation = genNames[selected.mutatedGene];
+targetGenes = [...selected.dna.genes];
+generation++;
+generateMutants(selected.dna);
+}
+return false;
+}
+
+function mousePressed() { if (mouseX > 0 && mouseY > 0) touchStarted(); }
+
+function generateMutants(parentDNA) {
+creatures = [];
+for (let i = 0; i < 8; i++) {
+let newDNA = new DNA(parentDNA.genes);
+let mutIdx = floor(random(9));
+newDNA.genes[mutIdx] += random([-1, 1]) * 0.65;
+newDNA.genes[mutIdx] = constrain(newDNA.genes[mutIdx], 0.2, 5);
+creatures.push(new Strichmensch(newDNA, mutIdx));
+}
+}
+
+class DNA { constructor(genes) { this.genes = [...genes]; } }
+class Strichmensch {
+constructor(dna, mIdx) { this.dna = dna; this.mutatedGene = mIdx; }
+show(x, y, s) { drawStickman(x, y, this.dna.genes, s, color(200, 200, 220, 120), this.mutatedGene); }
+}
+
+function drawStickman(x, y, genes, s, baseCol, mIdx) {
+push(); translate(x, y); scale(s);
+strokeWeight(5); stroke(baseCol); line(0, 0, 0, 30);
+let hSize = 10 + genes[8] * 10;
+stroke(mIdx === 8 ? color(255, 180, 0) : baseCol);
+noFill(); ellipse(0, -10 - hSize/2, hSize, hSize);
+for(let side of [-1, 1]) {
+drawLimb(0, 5, genes[0]*15, genes[1]*15, genes[4]*side, genes[6]*side, side, baseCol, mIdx, [0, 1, 4, 6]);
+drawLimb(0, 30, genes[2]*15, genes[3]*15, genes[5]*side, genes[7]*side, side, baseCol, mIdx, [2, 3, 5, 7]);
+}
+pop();
+}
+
+function drawLimb(sx, sy, ul, ll, ua, la, side, c, mIdx, gIds) {
+let isMut = gIds.includes(mIdx); stroke(isMut ? color(255, 180, 0) : c);
+strokeWeight(isMut ? 8 : 5);
+let ux = sx + sin(ua) * ul; let uy = sy + cos(ua) * ul;
+line(sx, sy, ux, uy); line(ux, uy, ux + sin(ua + la) * ll, uy + cos(ua + la) * ll);
+}
+</script></body></html>
