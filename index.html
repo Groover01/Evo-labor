@@ -9,10 +9,10 @@ body{
   margin:0;
   overflow:hidden;
   background:#0a0f19;
-  font-family:sans-serif;
+  font-family:'Segoe UI', Arial, sans-serif;
   color:white;
 }
-canvas{ display:block; }
+canvas{ display:block; touch-action:none; }
 </style>
 </head>
 <body>
@@ -81,7 +81,7 @@ class Creature{
 
     const base=isParent
       ? "rgba(0,255,200,0.9)"
-      : "rgba(200,200,220,0.8)";
+      : "rgba(200,200,220,0.9)";
 
     const highlight="rgba(255,180,0,1)";
 
@@ -145,6 +145,7 @@ class App{
   constructor(){
     this.canvas=document.getElementById("canvas");
     this.ctx=this.canvas.getContext("2d");
+
     this.resize();
     window.addEventListener("resize",()=>this.resize());
 
@@ -154,12 +155,21 @@ class App{
     this.generateChildren();
 
     window.addEventListener("click",(e)=>this.handleClick(e));
+    window.addEventListener("touchstart",(e)=>this.handleTouch(e));
+
     this.loop();
   }
 
   resize(){
-    this.canvas.width=window.innerWidth;
-    this.canvas.height=window.innerHeight;
+    const ratio = window.devicePixelRatio || 1;
+
+    this.canvas.width = window.innerWidth * ratio;
+    this.canvas.height = window.innerHeight * ratio;
+
+    this.canvas.style.width = window.innerWidth + "px";
+    this.canvas.style.height = window.innerHeight + "px";
+
+    this.ctx.setTransform(ratio,0,0,ratio,0,0);
   }
 
   generateChildren(){
@@ -171,9 +181,14 @@ class App{
     }
   }
 
+  handleTouch(e){
+    const t=e.touches[0];
+    this.handleClick({clientX:t.clientX, clientY:t.clientY});
+  }
+
   handleClick(e){
-    const w=this.canvas.width;
-    const h=this.canvas.height;
+    const w=this.canvas.width / (window.devicePixelRatio||1);
+    const h=this.canvas.height / (window.devicePixelRatio||1);
 
     const gridTop=h*0.48;
     const cellW=w/4;
@@ -195,23 +210,23 @@ class App{
   drawUI(){
     const ctx=this.ctx;
 
-    ctx.fillStyle="rgba(255,255,255,0.8)";
-    ctx.font="16px sans-serif";
+    ctx.fillStyle="rgba(255,255,255,0.9)";
+    ctx.font="24px 'Segoe UI', Arial";
     ctx.textAlign="left";
-    ctx.fillText("Generation: "+this.generation,20,30);
+    ctx.fillText("Generation: "+this.generation,20,40);
   }
 
   loop(){
     const ctx=this.ctx;
-    const w=this.canvas.width;
-    const h=this.canvas.height;
+    const w=this.canvas.width / (window.devicePixelRatio||1);
+    const h=this.canvas.height / (window.devicePixelRatio||1);
 
     ctx.fillStyle="#0a0f19";
     ctx.fillRect(0,0,w,h);
 
     // Parent
     new Creature(this.parentDNA)
-      .draw(ctx,w/2,h*0.25,2,true);
+      .draw(ctx,w/2,h*0.22,2.2,true);
 
     // Children
     const gridTop=h*0.48;
@@ -222,20 +237,22 @@ class App{
       const col=i%4;
       const row=Math.floor(i/4);
       const x=col*cellW+cellW/2;
-      const y=gridTop+row*cellH+cellH*0.4;
+      const y=gridTop+row*cellH+cellH*0.38;
 
-      this.children[i].draw(ctx,x,y,0.8,false);
+      this.children[i].draw(ctx,x,y,1,false);
 
       const mut=this.children[i].dna.lastMutation;
 
-      // Klar unterhalb der Figur
+      ctx.fillStyle="rgba(0,0,0,0.55)";
+      ctx.fillRect(x-90, gridTop+row*cellH+cellH-45, 180, 35);
+
       ctx.fillStyle="rgba(255,180,0,1)";
-      ctx.font="14px sans-serif";
+      ctx.font="18px 'Segoe UI', Arial";
       ctx.textAlign="center";
       ctx.fillText(
         "Mutation: " + GENE_NAMES[mut],
         x,
-        gridTop + row*cellH + cellH - 20
+        gridTop + row*cellH + cellH - 22
       );
     }
 
