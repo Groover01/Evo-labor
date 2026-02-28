@@ -1,5 +1,19 @@
-<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>Evolutions-Labor</title><script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script><style>body {padding: 0; margin: 0; overflow: hidden; background: #0a0f19; touch-action: none;}</style></head><body><script>
+<!DOCTYPE html>
 
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Evo-Labor</title>
+<link rel="apple-touch-icon" href="">
+<link rel="icon" type="image/png" href="">
+<script src=""></script>
+<style>
+body { padding: 0; margin: 0; overflow: hidden; background: #0a0f19; touch-action: none; font-family: sans-serif; }
+</style>
+</head>
+<body>
+<script>
 let creatures = [];
 const genNames = ["OBERARM", "UNTERARM", "BEIN OBEN", "BEIN UNTEN", "SCHULTER", "HÜFTE", "ELLBOGEN", "KNIE", "KOPF"];
 let displayGenes = [], targetGenes = [], generation = 1;
@@ -13,48 +27,42 @@ targetGenes = [...initialGenes];
 generateMutants(new DNA(initialGenes));
 }
 
-function windowResized() {
-resizeCanvas(windowWidth, windowHeight);
-}
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
 background(10, 15, 25);
 for (let i = 0; i < displayGenes.length; i++) {
 displayGenes[i] = lerp(displayGenes[i], targetGenes[i], 0.05);
 }
-
-let headerH = height * 0.35;
+let headerH = height * 0.32;
 noStroke(); fill(20, 25, 40);
 rect(10, 10, width - 20, headerH - 20, 15);
-drawStickman(width/2, headerH/2 + 10, displayGenes, height/850, color(0, 255, 200), -1);
-
+drawStickman(width/2, headerH/2 + 15, displayGenes, height/900, color(0, 255, 200), -1);
 let dbY = headerH;
-let dbH = height * 0.12;
+let dbH = height * 0.10;
 fill(15, 20, 30); rect(10, dbY, width - 20, dbH - 10, 10);
 fill(0, 255, 200); textAlign(LEFT, CENTER); textSize(14);
 text("GEN: " + generation, 25, dbY + dbH/2 - 12);
 fill(255, 150); textSize(11);
 text("LETZTE WAHL: " + lastMutation, 25, dbY + dbH/2 + 8);
-
 let gridY = dbY + dbH;
 let gridH = height - gridY - 10;
 let childW = (width - 30) / 2;
 let childH = gridH / 4;
-
 for (let i = 0; i < 8; i++) {
 let col = i % 2; let row = floor(i / 2);
 let x = 15 + col * childW + childW/2;
 let y = gridY + row * childH + childH/2;
 fill(255, 5); noStroke();
 rect(15 + col * childW + 2, gridY + row * childH + 2, childW - 4, childH - 4, 8);
-creatures[i].show(x, y, height/1800);
-textAlign(CENTER); textSize(9); fill(255, 200, 0, 150);
-text(genNames[creatures[i].mutatedGene], x, gridY + (row+1) * childH - 8);
+creatures[i].show(x, y + 15, height/1900);
+textAlign(CENTER); textSize(10); fill(255, 200, 0, 180);
+text(genNames[creatures[i].mutatedGene], x, gridY + row * childH + 18);
 }
 }
 
 function touchStarted() {
-let headerH = height * 0.35; let dbH = height * 0.12;
+let headerH = height * 0.32; let dbH = height * 0.10;
 let gridY = headerH + dbH;
 if (mouseY < gridY) return false;
 let childW = (width - 30) / 2;
@@ -110,4 +118,7 @@ strokeWeight(isMut ? 8 : 5);
 let ux = sx + sin(ua) * ul; let uy = sy + cos(ua) * ul;
 line(sx, sy, ux, uy); line(ux, uy, ux + sin(ua + la) * ll, uy + cos(ua + la) * ll);
 }
-</script></body></html>
+</script>
+
+</body>
+</html>
