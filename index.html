@@ -14,29 +14,28 @@ canvas { display:block; }
 
 <script>
 // ===============================
-// Utility
+// Utils
 // ===============================
-const Utils = {
-  lerp: (a,b,t)=>a+(b-a)*t,
+const U = {
   clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),
   rand:(min,max)=>Math.random()*(max-min)+min,
   randInt:(max)=>Math.floor(Math.random()*max),
-  choice:(arr)=>arr[Math.floor(Math.random()*arr.length)]
+  choice:(a)=>a[Math.floor(Math.random()*a.length)]
 };
 
 // ===============================
-// Canvas Engine
+// Engine
 // ===============================
-class Engine {
+class Engine{
   constructor(canvas){
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    this.canvas=canvas;
+    this.ctx=canvas.getContext("2d");
     this.resize();
-    window.addEventListener("resize", ()=>this.resize());
+    window.addEventListener("resize",()=>this.resize());
   }
   resize(){
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    this.canvas.width=window.innerWidth;
+    this.canvas.height=window.innerHeight;
   }
   clear(){
     this.ctx.fillStyle="#0a0f19";
@@ -44,39 +43,26 @@ class Engine {
   }
 }
 
-// ===============================
-// DNA
-// ===============================
-class DNA {
-  constructor(genes){
-    this.genes = [...genes];
-  }
+class DNA{
+  constructor(genes){ this.genes=[...genes]; }
+  clone(){ return new DNA(this.genes); }
   mutate(){
-    const idx = Utils.randInt(this.genes.length);
-    this.genes[idx] += Utils.choice([-1,1]) * 0.55;
-    this.genes[idx] = Utils.clamp(this.genes[idx],0.2,5);
-    return idx;
-  }
-  clone(){
-    return new DNA(this.genes);
+    const idx=U.randInt(this.genes.length);
+    this.genes[idx]+=U.choice([-1,1])*0.55;
+    this.genes[idx]=U.clamp(this.genes[idx],0.2,5);
   }
 }
 
-// ===============================
-// Creature Renderer
-// ===============================
-class Creature {
-  constructor(dna){
-    this.dna = dna;
-  }
+class Creature{
+  constructor(dna){ this.dna=dna; }
 
-  draw(ctx,x,y,scale=1,color="rgba(0,255,200,0.8)"){
-    const g = this.dna.genes;
+  draw(ctx,x,y,scale,color){
+    const g=this.dna.genes;
     ctx.save();
     ctx.translate(x,y);
     ctx.scale(scale,scale);
     ctx.strokeStyle=color;
-    ctx.lineWidth=4;
+    ctx.lineWidth=3;
 
     // torso
     ctx.beginPath();
@@ -85,27 +71,27 @@ class Creature {
     ctx.stroke();
 
     // head
-    let headSize = 10 + g[8]*10;
+    let head=10+g[8]*10;
     ctx.beginPath();
-    ctx.arc(0,-10-headSize/2,headSize/2,0,Math.PI*2);
+    ctx.arc(0,-10-head/2,head/2,0,Math.PI*2);
     ctx.stroke();
 
-    const limb = (sx,sy,ul,ll,ua,la)=>{
-      const ux = sx + Math.sin(ua)*ul;
-      const uy = sy + Math.cos(ua)*ul;
+    const limb=(sx,sy,ul,ll,ua,la)=>{
+      const ux=sx+Math.sin(ua)*ul;
+      const uy=sy+Math.cos(ua)*ul;
       ctx.beginPath();
       ctx.moveTo(sx,sy);
       ctx.lineTo(ux,uy);
       ctx.lineTo(
-        ux + Math.sin(ua+la)*ll,
-        uy + Math.cos(ua+la)*ll
+        ux+Math.sin(ua+la)*ll,
+        uy+Math.cos(ua+la)*ll
       );
       ctx.stroke();
     };
 
-    for(let side of [-1,1]){
-      limb(0,5,g[0]*12,g[1]*12,g[4]*side,g[6]*side);
-      limb(0,30,g[2]*12,g[3]*12,g[5]*side,g[7]*side);
+    for(let s of [-1,1]){
+      limb(0,5,g[0]*12,g[1]*12,g[4]*s,g[6]*s);
+      limb(0,30,g[2]*12,g[3]*12,g[5]*s,g[7]*s);
     }
 
     ctx.restore();
@@ -113,42 +99,92 @@ class Creature {
 }
 
 // ===============================
-// Evolution System
+// Evolution App
 // ===============================
-class Evolution {
+class App{
   constructor(){
-    this.baseGenes=[2,1.5,2.5,2,0.4,0.4,0.6,0.3,0.8];
-    this.currentDNA=new DNA(this.baseGenes);
-    this.creature=new Creature(this.currentDNA);
+    this.engine=new Engine(document.getElementById("canvas"));
+    this.generation=1;
+
+    this.parentDNA=new DNA([2,1.5,2.5,2,0.4,0.4,0.6,0.3,0.8]);
+    this.children=[];
+
+    this.generateChildren();
+
+    window.addEventListener("click",(e)=>this.handleClick(e));
+    this.loop();
   }
-  next(){
-    const newDNA=this.currentDNA.clone();
-    newDNA.mutate();
-    this.currentDNA=newDNA;
-    this.creature=new Creature(newDNA);
+
+  generateChildren(){
+    this.children=[];
+    for(let i=0;i<8;i++){
+      let dna=this.parentDNA.clone();
+      dna.mutate();
+      this.children.push(new Creature(dna));
+    }
+  }
+
+  handleClick(e){
+    const w=this.engine.canvas.width;
+    const h=this.engine.canvas.height;
+
+    const gridTop=h*0.45;
+    const cellW=w/4;
+    const cellH=(h-gridTop)/2;
+
+    const col=Math.floor(e.clientX/cellW);
+    const row=Math.floor((e.clientY-gridTop)/cellH);
+
+    if(row>=0 && row<2 && col>=0 && col<4){
+      const index=row*4+col;
+      if(this.children[index]){
+        this.parentDNA=this.children[index].dna.clone();
+        this.generation++;
+        this.generateChildren();
+      }
+    }
+  }
+
+  drawUI(){
+    const ctx=this.engine.ctx;
+    ctx.fillStyle="rgba(255,255,255,0.6)";
+    ctx.font="16px sans-serif";
+    ctx.fillText("Generation: "+this.generation,20,30);
+    ctx.fillText("Klicke auf ein Kind",20,50);
+  }
+
+  loop(){
+    this.engine.clear();
+    const ctx=this.engine.ctx;
+    const w=this.engine.canvas.width;
+    const h=this.engine.canvas.height;
+
+    // Parent
+    new Creature(this.parentDNA)
+      .draw(ctx,w/2,h*0.25,2,"rgba(0,255,200,0.9)");
+
+    // Children grid
+    const gridTop=h*0.45;
+    const cellW=w/4;
+    const cellH=(h-gridTop)/2;
+
+    for(let i=0;i<8;i++){
+      const col=i%4;
+      const row=Math.floor(i/4);
+
+      const x=col*cellW+cellW/2;
+      const y=gridTop+row*cellH+cellH/2;
+
+      this.children[i]
+        .draw(ctx,x,y,0.8,"rgba(200,200,220,0.8)");
+    }
+
+    this.drawUI();
+    requestAnimationFrame(()=>this.loop());
   }
 }
 
-// ===============================
-// App
-// ===============================
-const engine=new Engine(document.getElementById("canvas"));
-const evo=new Evolution();
-
-window.addEventListener("click",()=>evo.next());
-
-function loop(){
-  engine.clear();
-  evo.creature.draw(
-    engine.ctx,
-    engine.canvas.width/2,
-    engine.canvas.height/2,
-    1.6
-  );
-  requestAnimationFrame(loop);
-}
-
-loop();
+new App();
 </script>
 </body>
 </html>
