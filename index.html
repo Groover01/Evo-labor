@@ -5,66 +5,106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Evo-Labor</title>
 <style>
-body { margin:0; overflow:hidden; background:#0a0f19; font-family:sans-serif; }
-canvas { display:block; }
+body{
+  margin:0;
+  overflow:hidden;
+  background:#0a0f19;
+  font-family:sans-serif;
+  color:white;
+}
+canvas{ display:block; }
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
 
 <script>
-// ===============================
-// Utils
-// ===============================
+// =======================================================
+// GENE DEFINITIONS
+// =======================================================
+
+const GENE_NAMES = [
+  "Oberarm",
+  "Unterarm",
+  "Oberschenkel",
+  "Unterschenkel",
+  "Schulterwinkel",
+  "Hüftwinkel",
+  "Ellbogenwinkel",
+  "Kniewinkel",
+  "Kopfgröße"
+];
+
+// =======================================================
+// UTILS
+// =======================================================
+
 const U = {
   clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),
-  rand:(min,max)=>Math.random()*(max-min)+min,
   randInt:(max)=>Math.floor(Math.random()*max),
   choice:(a)=>a[Math.floor(Math.random()*a.length)]
 };
 
-// ===============================
-// Engine
-// ===============================
-class Engine{
-  constructor(canvas){
-    this.canvas=canvas;
-    this.ctx=canvas.getContext("2d");
-    this.resize();
-    window.addEventListener("resize",()=>this.resize());
-  }
-  resize(){
-    this.canvas.width=window.innerWidth;
-    this.canvas.height=window.innerHeight;
-  }
-  clear(){
-    this.ctx.fillStyle="#0a0f19";
-    this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-  }
-}
+// =======================================================
+// DNA
+// =======================================================
 
 class DNA{
-  constructor(genes){ this.genes=[...genes]; }
-  clone(){ return new DNA(this.genes); }
+  constructor(genes){
+    this.genes=[...genes];
+    this.lastMutation=null;
+  }
+
+  clone(){
+    const d=new DNA(this.genes);
+    d.lastMutation=this.lastMutation;
+    return d;
+  }
+
   mutate(){
     const idx=U.randInt(this.genes.length);
     this.genes[idx]+=U.choice([-1,1])*0.55;
     this.genes[idx]=U.clamp(this.genes[idx],0.2,5);
+    this.lastMutation=idx;
   }
 }
 
-class Creature{
-  constructor(dna){ this.dna=dna; }
+// =======================================================
+// CREATURE
+// =======================================================
 
-  draw(ctx,x,y,scale,color){
+class Creature{
+  constructor(dna){
+    this.dna=dna;
+  }
+
+  draw(ctx,x,y,scale,isParent=false){
     const g=this.dna.genes;
+    const mut=this.dna.lastMutation;
+
     ctx.save();
     ctx.translate(x,y);
     ctx.scale(scale,scale);
-    ctx.strokeStyle=color;
-    ctx.lineWidth=3;
+
+    const base=isParent
+      ? "rgba(0,255,200,0.9)"
+      : "rgba(200,200,220,0.8)";
+
+    const highlight="rgba(255,180,0,1)";
+
+    const strokePart=(geneIndex)=>{
+      if(mut===geneIndex && !isParent){
+        ctx.strokeStyle=highlight;
+        ctx.lineWidth=6;
+      }else{
+        ctx.strokeStyle=base;
+        ctx.lineWidth=3;
+      }
+    };
 
     // torso
+    ctx.strokeStyle=base;
+    ctx.lineWidth=3;
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.lineTo(0,30);
@@ -72,16 +112,24 @@ class Creature{
 
     // head
     let head=10+g[8]*10;
+    strokePart(8);
     ctx.beginPath();
     ctx.arc(0,-10-head/2,head/2,0,Math.PI*2);
     ctx.stroke();
 
-    const limb=(sx,sy,ul,ll,ua,la)=>{
+    const limb=(sx,sy,ul,ll,ua,la,ids)=>{
       const ux=sx+Math.sin(ua)*ul;
       const uy=sy+Math.cos(ua)*ul;
+
+      strokePart(ids[0]);
       ctx.beginPath();
       ctx.moveTo(sx,sy);
       ctx.lineTo(ux,uy);
+      ctx.stroke();
+
+      strokePart(ids[1]);
+      ctx.beginPath();
+      ctx.moveTo(ux,uy);
       ctx.lineTo(
         ux+Math.sin(ua+la)*ll,
         uy+Math.cos(ua+la)*ll
@@ -90,53 +138,62 @@ class Creature{
     };
 
     for(let s of [-1,1]){
-      limb(0,5,g[0]*12,g[1]*12,g[4]*s,g[6]*s);
-      limb(0,30,g[2]*12,g[3]*12,g[5]*s,g[7]*s);
+      limb(0,5,g[0]*12,g[1]*12,g[4]*s,g[6]*s,[0,1]);
+      limb(0,30,g[2]*12,g[3]*12,g[5]*s,g[7]*s,[2,3]);
     }
 
     ctx.restore();
   }
 }
 
-// ===============================
-// Evolution App
-// ===============================
+// =======================================================
+// APP
+// =======================================================
+
 class App{
   constructor(){
-    this.engine=new Engine(document.getElementById("canvas"));
-    this.generation=1;
+    this.canvas=document.getElementById("canvas");
+    this.ctx=this.canvas.getContext("2d");
+    this.resize();
+    window.addEventListener("resize",()=>this.resize());
 
+    this.generation=1;
     this.parentDNA=new DNA([2,1.5,2.5,2,0.4,0.4,0.6,0.3,0.8]);
     this.children=[];
-
     this.generateChildren();
 
     window.addEventListener("click",(e)=>this.handleClick(e));
+
     this.loop();
+  }
+
+  resize(){
+    this.canvas.width=window.innerWidth;
+    this.canvas.height=window.innerHeight;
   }
 
   generateChildren(){
     this.children=[];
     for(let i=0;i<8;i++){
-      let dna=this.parentDNA.clone();
+      const dna=this.parentDNA.clone();
       dna.mutate();
       this.children.push(new Creature(dna));
     }
   }
 
   handleClick(e){
-    const w=this.engine.canvas.width;
-    const h=this.engine.canvas.height;
+    const w=this.canvas.width;
+    const h=this.canvas.height;
 
-    const gridTop=h*0.45;
+    const gridTop=h*0.48;
     const cellW=w/4;
     const cellH=(h-gridTop)/2;
 
     const col=Math.floor(e.clientX/cellW);
     const row=Math.floor((e.clientY-gridTop)/cellH);
+    const index=row*4+col;
 
     if(row>=0 && row<2 && col>=0 && col<4){
-      const index=row*4+col;
       if(this.children[index]){
         this.parentDNA=this.children[index].dna.clone();
         this.generation++;
@@ -146,45 +203,63 @@ class App{
   }
 
   drawUI(){
-    const ctx=this.engine.ctx;
-    ctx.fillStyle="rgba(255,255,255,0.6)";
+    const ctx=this.ctx;
+
+    ctx.fillStyle="rgba(255,255,255,0.8)";
     ctx.font="16px sans-serif";
+    ctx.textAlign="left";
     ctx.fillText("Generation: "+this.generation,20,30);
-    ctx.fillText("Klicke auf ein Kind",20,50);
+
+    ctx.font="13px sans-serif";
+    ctx.fillStyle="rgba(255,255,255,0.6)";
+    ctx.fillText(
+      "Mutation + Selektion: Du wählst ein Individuum → es wird neues Elternteil.",
+      20,
+      this.canvas.height-30
+    );
   }
 
   loop(){
-    this.engine.clear();
-    const ctx=this.engine.ctx;
-    const w=this.engine.canvas.width;
-    const h=this.engine.canvas.height;
+    const ctx=this.ctx;
+    const w=this.canvas.width;
+    const h=this.canvas.height;
+
+    ctx.fillStyle="#0a0f19";
+    ctx.fillRect(0,0,w,h);
 
     // Parent
     new Creature(this.parentDNA)
-      .draw(ctx,w/2,h*0.25,2,"rgba(0,255,200,0.9)");
+      .draw(ctx,w/2,h*0.25,2,true);
 
-    // Children grid
-    const gridTop=h*0.45;
+    // Children Grid
+    const gridTop=h*0.48;
     const cellW=w/4;
     const cellH=(h-gridTop)/2;
 
     for(let i=0;i<8;i++){
       const col=i%4;
       const row=Math.floor(i/4);
-
       const x=col*cellW+cellW/2;
       const y=gridTop+row*cellH+cellH/2;
 
-      this.children[i]
-        .draw(ctx,x,y,0.8,"rgba(200,200,220,0.8)");
+      this.children[i].draw(ctx,x,y,0.8,false);
+
+      const mut=this.children[i].dna.lastMutation;
+
+      ctx.fillStyle="rgba(255,180,0,0.9)";
+      ctx.font="13px sans-serif";
+      ctx.textAlign="center";
+      ctx.fillText(GENE_NAMES[mut],x,y+65);
     }
 
     this.drawUI();
+
     requestAnimationFrame(()=>this.loop());
   }
 }
 
 new App();
+
 </script>
 </body>
 </html>
